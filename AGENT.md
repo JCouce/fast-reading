@@ -9,3 +9,4 @@
 - Decisiones de producto pendientes: `decisions/<MH>.md`. Respondidas: `decisions/answered/`.
 
 ## Notas aprendidas
+- `tsconfig` tiene `noUncheckedIndexedAccess`: `s[i]` es `string | undefined`; usa `s.charAt(i)`.
