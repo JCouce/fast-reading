@@ -11,4 +11,6 @@
 ## Notas aprendidas
 - `tsconfig` tiene `noUncheckedIndexedAccess`: `s[i]` es `string | undefined`; usa `s.charAt(i)`.
 - `check.sh` cuenta los tests saltados como FALLA. Los `[G]` se saltan si no existe `RSVP_BOOK` (ruta al libro, p. ej. `.oracle/fixtures/book.pdf`).
+- pdf.js con este libro: `getTextContent` devuelve un item por carácter (los espacios son items `" "` de ancho 0) y `hasEOL` en un item vacío al cambiar de renglón. `PasswordException` no se exporta: compárala por `err.name`. `getDocument` transfiere el buffer: pásale `bytes.slice()`.
+- `extract.ts` separa la lectura de pdf.js (`readLines` → `Line {page, x, y, size, font, text}`) de `linesToBook`: ahí van párrafos (MH-5) y títulos (MH-6).
 - El alias `@/` solo existe en Vitest; `tsc` no lo resuelve. En `src/` importa con rutas relativas.
