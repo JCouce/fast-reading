@@ -22,7 +22,10 @@ const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5
 app.innerHTML = `
   <header class="top">
     <span class="brand"><span class="brand-mark" aria-hidden="true"></span>fast reading</span>
-    <button type="button" class="chip open-other" hidden>Abrir otro PDF</button>
+    <div class="top-actions">
+      <button type="button" class="chip theme"></button>
+      <button type="button" class="chip open-other" hidden>Abrir otro PDF</button>
+    </div>
   </header>
   <input class="sr-only" type="file" accept="application/pdf,.pdf" tabindex="-1" data-testid="file-input" aria-label="Elegir un libro en PDF" />
   <section class="hero">
@@ -88,6 +91,7 @@ const pctEl = $('.pct');
 const progressEl = $('.progress-fill');
 const heroEl = $('.hero');
 const openOtherBtn = $<HTMLButtonElement>('.open-other');
+const themeBtn = $<HTMLButtonElement>('.theme');
 
 let player: Player | null = null;
 let current: { key: string; book: Book; tokens: BookTokens } | null = null;
@@ -295,6 +299,37 @@ fileInput.addEventListener('change', () => {
   if (file) void open(file);
 });
 for (const btn of [openOtherBtn, $('.drop')]) btn.addEventListener('click', () => fileInput.click());
+
+// El primer data-theme lo pone index.html antes de pintar; aquí solo se rota y se guarda.
+const THEMES = {
+  system: { next: 'light', label: 'Tema: el del sistema', icon: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17Z" fill="currentColor"/>' },
+  light: { next: 'dark', label: 'Tema: claro', icon: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' },
+  dark: { next: 'system', label: 'Tema: oscuro', icon: '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/>' },
+} as const;
+type Theme = keyof typeof THEMES;
+
+function applyTheme(theme: Theme) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  const { label, icon } = THEMES[theme];
+  themeBtn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`;
+  themeBtn.setAttribute('aria-label', `${label}. Cambiar tema`);
+  themeBtn.title = label;
+}
+
+const savedTheme = document.documentElement.dataset.theme;
+let theme: Theme = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'system';
+applyTheme(theme);
+themeBtn.addEventListener('click', () => {
+  theme = THEMES[theme].next;
+  applyTheme(theme);
+  try {
+    if (theme === 'system') localStorage.removeItem('theme');
+    else localStorage.setItem('theme', theme);
+  } catch {
+    // Sin localStorage (privado, bloqueado) el tema vale solo para esta sesión.
+  }
+});
 
 // Arrastrar un archivo a cualquier parte de la ventana. dragleave salta también al pasar entre hijos: solo cuenta al salir de la ventana.
 const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false;

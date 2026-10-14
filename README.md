@@ -21,6 +21,7 @@ Sin servidor ni cuentas: el PDF no sale de tu navegador.
 
 - También puedes arrastrar el PDF a la ventana, y la velocidad se cambia con los botones − / + (útil en móvil).
 - En pausa se despliega un panel con el párrafo actual, la palabra resaltada, el capítulo y el tiempo que queda.
+- El botón de la cabecera cambia el tema: el del sistema, claro u oscuro. Se recuerda entre visitas.
 - La lectura se pausa sola al cambiar de pestaña.
 - Si retomas tras más de 3 s de pausa, vuelves al principio de la frase.
 

@@ -19,6 +19,7 @@ En la app:
 - **Espacio**: play/pausa. **↑/↓**: ±25 WPM (100–1000, 300 por defecto).
 - También se puede arrastrar el PDF a la ventana; − / + en el dock cambian la velocidad.
 - En pausa se despliega un panel con el párrafo (palabra resaltada), capítulo y tiempo restante.
+- Botón de tema en la cabecera: sistema → claro → oscuro, guardado en `localStorage` (`theme`).
 - Al recargar se abre el último libro en la palabra y WPM donde lo dejaste.
 - Se pausa sola al ocultar la pestaña; tras una pausa de más de 3 s vuelve al inicio de la frase.
 
@@ -51,5 +52,6 @@ Los tests de aceptación no viven en el repo: son un oráculo externo en `~/.mus
 - Si cambias la extracción o el tokenizado, sube `PARSER_VERSION` en `src/persist/cacheKey.ts` o la caché servirá libros viejos.
 - Nada de `main.ts` puede importar `extract.ts`/pdf.js: arrastraría pdf.js al chunk principal y rompería MH-14 en silencio.
 - El input de archivo está oculto con `.sr-only` (nunca `display: none`): los e2e le meten archivos aunque haya un libro abierto y MH-33 exige que cada control visible tenga nombre y se pueda enfocar. El contexto se esconde con `grid-template-rows: 0fr` (alto 0 = oculto para Playwright), no con `hidden`, para poder animarlo.
+- Tema: `data-theme` en `<html>` lo pone un script inline de `index.html` antes de pintar (si no, parpadea); los tokens oscuros están duplicados en `style.css` a propósito (media query y `[data-theme='dark']`).
 - `window.__rsvp` en `main.ts` es un hook para los e2e; no lo quites.
 - `check.sh` levanta su propio `vite preview` en 4173: no dejes uno en segundo plano o falla por puerto ocupado.

@@ -21,8 +21,9 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Sin data-theme manda el sistema; data-theme (lo pone el botón de tema) lo fuerza. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #131312;
     --surface: rgb(32 31 29 / 0.8);
     --surface-solid: #201f1d;
@@ -35,6 +36,20 @@
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 48px -12px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #131312;
+  --surface: rgb(32 31 29 / 0.8);
+  --surface-solid: #201f1d;
+  --text: #ecebe6;
+  --muted: #9b978d;
+  --line: rgb(236 235 230 / 0.1);
+  --accent: #ff6b6f;
+  --accent-soft: rgb(255 107 111 / 0.16);
+  --mark: rgb(255 214 102 / 0.28);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 48px -12px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
 }
 
 *,
@@ -118,6 +133,30 @@ button {
 
 .chip:hover {
   border-color: var(--accent);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+}
+
+.theme svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Mientras se lee, todo lo accesorio se apaga para no competir con la palabra. */
