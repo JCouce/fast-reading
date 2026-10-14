@@ -67,3 +67,29 @@ export function tokenize(text: string): WordToken[] {
   // Una apertura al final del texto no tiene a quién pegarse: se descarta antes que dejarla suelta.
   return words.map((w, i) => ({ text: w, sentenceEnd: endsSentence(w, words[i + 1]) }));
 }
+
+const LONG_WORD = 14;
+const CHUNK = 8;
+
+function alnumLength(s: string): number {
+  return s.match(/[\p{L}\p{N}]/gu)?.length ?? 0;
+}
+
+// Palabras largas en trozos legibles (MH-12): por el guion si lo hay; si no, ⌈len/8⌉ trozos casi iguales.
+export function splitLong(word: string): string[] {
+  if (alnumLength(word) < LONG_WORD) return [word];
+  if (word.includes('-')) {
+    const parts = word.split(/(?<=-)(?=[^-])/);
+    if (parts.length > 1) return parts;
+  }
+  const n = Math.ceil(word.length / CHUNK);
+  // La puntuación final va entera al último trozo: ningún trozo intermedio la lleva ni el último queda solo con ella.
+  const body = word.replace(/[^\p{L}\p{N}]+$/u, '');
+  const trailing = word.slice(body.length);
+  const parts: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const piece = body.slice(Math.round((i * body.length) / n), Math.round(((i + 1) * body.length) / n));
+    parts.push(i < n - 1 ? `${piece}-` : piece + trailing);
+  }
+  return parts;
+}
