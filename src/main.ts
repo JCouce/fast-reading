@@ -6,11 +6,12 @@ import type { Book } from './core/types';
 import type { IngestResult } from './ingest/ingest';
 import type { IngestMessage } from './ingest/worker';
 import { cacheKey } from './persist/cacheKey';
-import { createStore } from './persist/store';
+import { createStore, type Progress } from './persist/store';
 import './style.css';
 
 const WPM_STEP = 25;
 const DEFAULT_WPM = 300;
+const SAVE_EVERY_MS = 1000;
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('Falta #app');
@@ -52,7 +53,7 @@ const wpmEl = $('[data-testid="wpm"]');
 const contextEl = $('[data-testid="context"]');
 
 let player: Player | null = null;
-let current: { book: Book; tokens: BookTokens } | null = null;
+let current: { key: string; book: Book; tokens: BookTokens } | null = null;
 let wpm = DEFAULT_WPM;
 
 function show(text: string) {
@@ -115,6 +116,16 @@ function sync() {
   playBtn.textContent = playing ? '❚❚' : '▶';
   playBtn.setAttribute('aria-label', playing ? 'Pausar' : 'Reproducir');
   wpmEl.textContent = String(player?.wpm ?? wpm);
+  saveProgress();
+}
+
+let lastSave = 0;
+function saveProgress() {
+  if (!player || !current) return;
+  lastSave = performance.now();
+  const { key } = current;
+  const p = { index: player.index, wpm: player.wpm };
+  void storePromise.then((store) => store.saveProgress(key, p));
 }
 
 function showError(message: string) {
@@ -169,41 +180,49 @@ async function open(file: File) {
     book = result.book;
     await store.saveBook(key, book);
   }
+  const progress = await store.loadProgress(key);
   loadingEl.hidden = true;
   await store.setLastBook(key);
-  startReader(book);
+  startReader(key, book, progress);
 }
 
 async function openLast() {
   const store = await storePromise;
   const key = await store.getLastBook();
   if (!key || current) return;
-  const book = await store.loadBook(key);
+  const [book, progress] = await Promise.all([store.loadBook(key), store.loadProgress(key)]);
   // Si mientras tanto se ha elegido otro archivo, manda ese.
-  if (book && !current) startReader(book);
+  if (book && !current) startReader(key, book, progress);
 }
 
-function startReader(book: Book) {
+function startReader(key: string, book: Book, progress: Progress | null) {
   player?.pause();
   const bookTokens = bookToTokens(book);
   const { tokens } = bookTokens;
-  current = { book, tokens: bookTokens };
-  player = createPlayer({
+  current = { key, book, tokens: bookTokens };
+  if (progress) wpm = progress.wpm;
+  const p = createPlayer({
     tokens,
     clock,
     wpm,
     visibility,
-    onWord: (i) => show(tokens[i]?.text ?? ''),
+    onWord: (i) => {
+      show(tokens[i]?.text ?? '');
+      if (performance.now() - lastSave >= SAVE_EVERY_MS) saveProgress();
+    },
     onBlank: () => show(''),
     onEnd: sync,
   });
+  if (progress) p.seek(progress.index);
+  player = p;
   readerEl.hidden = false;
-  show(tokens[0]?.text ?? '');
+  show(tokens[p.index]?.text ?? '');
   sync();
 }
 
 // Una sola vez y en microtarea: el listener del reproductor se registra después, y así la pausa ya está aplicada.
 document.addEventListener('visibilitychange', () => queueMicrotask(sync));
+window.addEventListener('pagehide', saveProgress);
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files?.[0];
