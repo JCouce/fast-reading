@@ -68,6 +68,11 @@ export function tokenize(text: string): WordToken[] {
   return words.map((w, i) => ({ text: w, sentenceEnd: endsSentence(w, words[i + 1]) }));
 }
 
+// Fin de frase para palabras ya separadas (las de `Book`), con las mismas reglas que `tokenize`.
+export function sentenceEnds(words: string[]): boolean[] {
+  return words.map((w, i) => endsSentence(w, words[i + 1]));
+}
+
 const LONG_WORD = 14;
 const CHUNK = 8;
 
