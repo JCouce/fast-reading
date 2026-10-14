@@ -5,3 +5,7 @@ test-results/
 playwright-report/
 .DS_Store
 .oracle/
+*.pdf
+*.log
+.env*
+coverage/
