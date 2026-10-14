@@ -10,4 +10,5 @@
 
 ## Notas aprendidas
 - `tsconfig` tiene `noUncheckedIndexedAccess`: `s[i]` es `string | undefined`; usa `s.charAt(i)`.
+- `check.sh` cuenta los tests saltados como FALLA. Los `[G]` se saltan si no existe `RSVP_BOOK` (ruta al libro, p. ej. `.oracle/fixtures/book.pdf`).
 - El alias `@/` solo existe en Vitest; `tsc` no lo resuelve. En `src/` importa con rutas relativas.
