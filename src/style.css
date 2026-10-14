@@ -54,6 +54,18 @@ body {
   color: #d0021b;
 }
 
+.context {
+  margin-top: 2rem;
+  line-height: 1.6;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.context mark {
+  background: #ffe58a;
+  color: inherit;
+}
+
 .controls {
   display: flex;
   justify-content: center;
