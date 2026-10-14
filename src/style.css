@@ -40,7 +40,8 @@ body {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   min-height: 1.4em;
   font-family: ui-monospace, Menlo, monospace;
-  font-size: clamp(1.5rem, 8vw, 3rem);
+  /* 6vw: el peor trozo (13 letras + puntuación, ~12 caracteres tras el pivote a 0,6em) cabe en media pantalla a 375 px. */
+  font-size: clamp(1.25rem, 6vw, 3rem);
   white-space: pre;
   overflow: hidden;
 }
