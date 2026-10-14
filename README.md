@@ -4,6 +4,8 @@ Lector RSVP (*Rapid Serial Visual Presentation*) para PDFs que funciona entero e
 
 Sin servidor ni cuentas: el PDF no sale de tu navegador.
 
+**Pruébalo:** https://jcouce.github.io/fast-reading/
+
 ## Qué hace
 
 - **Extracción en un Web Worker** con pdf.js: texto normalizado (NFC, ligaduras, soft hyphens), guiones de fin de renglón resueltos y detección de párrafos, títulos y elementos de lista.

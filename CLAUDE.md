@@ -23,6 +23,10 @@ En la app:
 - Al recargar se abre el último libro en la palabra y WPM donde lo dejaste.
 - Se pausa sola al ocultar la pestaña; tras una pausa de más de 3 s vuelve al inicio de la frase.
 
+## Despliegue
+
+GitHub Pages en https://jcouce.github.io/fast-reading/ con `.github/workflows/deploy.yml`: cada push a `main` hace build y publica `dist/`. `base: './'` en `vite.config.ts` hace que valga igual en la subruta que en la raíz (preview y e2e). Ningún libro va al build.
+
 ## Estructura
 
 - `src/ingest/`: validación, worker, `extractBook` (pdf.js → `Book`: palabras, párrafos, títulos, listas), normalización y guiones de corte.
