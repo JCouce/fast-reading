@@ -13,6 +13,7 @@ export interface Book {
   words: string[];            // palabras en orden de lectura; sin vacíos ni espacios/saltos dentro
   paragraphStarts: number[];  // índices de `words` donde empieza un párrafo, ascendentes; incluye 0
   titles: Title[];            // títulos detectados, en orden
+  listItemStarts: number[];   // índices de `words` donde empieza un elemento de lista (la viñeta · • se elimina), ascendentes
   pageCount: number;
 }
 export interface Title { start: number; end: number; text: string } // [start, end) en `words`; text = words.slice(start,end).join(' ')
@@ -23,6 +24,7 @@ export interface TimedToken {
   sentenceLength?: number;    // nº de palabras de la frase a la que pertenece (para el ×3 de frases > 22)
   paragraphEnd?: boolean;     // última palabra del párrafo
   isTitle?: boolean;          // pertenece a un título
+  listItemStart?: boolean;    // primera palabra de un elemento de lista
 }
 ```
 
@@ -35,12 +37,14 @@ export interface TimedToken {
 - `normalizeText(s: string): string` — NFC, ligaduras (ﬀ ﬁ ﬂ ﬃ ﬄ ﬅ ﬆ) a letras, elimina soft hyphen U+00AD. No aplica NFKC: `n.º`, `1.ª` quedan intactos. (MH-7)
 
 ### `src/ingest/dehyphenate.ts`
-- `resolveLineBreakHyphen(left: string, right: string): string` — `left` termina en `-` (guion de fin de renglón), `right` es la primera palabra del renglón siguiente. Si `right` contiene a su vez un guion, se mantiene el guion (`'lucha-' + 'huida-inmovilidad'` → `'lucha-huida-inmovilidad'`); si no, se une sin guion (`'des-' + 'integrada,'` → `'desintegrada,'`). La raya `–` (U+2013) nunca es guion de corte. (MH-4)
+- `resolveLineBreakHyphen(left: string, right: string): string` — `left` termina en `-` (guion de fin de renglón), `right` es la primera palabra del renglón siguiente. Si `right` contiene a su vez un guion, se mantiene el guion (`'lucha-' + 'huida-inmovilidad'` → `'lucha-huida-inmovilidad'`); si no, se une sin guion (`'des-' + 'integrada,'` → `'desintegrada,'`). La raya `–` (U+2013) nunca es guion de corte. Limitación conocida y aceptada: un compuesto de dos partes cortado justo en su guion (`'teórico-' + 'práctico'`) se une. (MH-4)
 
 ### `src/ingest/extract.ts`
 - `extractBook(bytes: Uint8Array): Promise<Book>` — extrae con pdf.js. Debe funcionar tanto en Node (Vitest, usando `pdfjs-dist/legacy/build/pdf.mjs`) como dentro del Web Worker de la app. Aplica normalización, guiones de corte, detección de párrafos y de títulos. Lanza errores tipados (ver `IngestErrorCode`). (MH-3, 4, 5, 6, 8)
 - Ojo con MH-6 en este libro: los 48 "APLICACIÓN DE LA ESTRATEGIA" del apéndice (págs. 186–213) usan la **misma fuente** que el cuerpo; ahí el título se reconoce por renglón corto, sin puntuación final y aislado entre párrafos. El cambio de fuente es una señal más, no la única.
-- Tokens sin letras ni dígitos (`·`, `•`, `=`, `+`, `©`) son legítimos en el libro (MH-8): no los elimines, solo no metas basura (controles, U+FFFD, uso privado).
+- Viñetas de lista (`·`, `•`): no salen como palabra; se eliminan y la palabra siguiente se marca en `listItemStarts` (MH-8).
+- Raya de inciso al final de renglón (`… hijos –⏎padres, …`): se pega a la primera palabra del renglón siguiente (`–padres,`), como pide MH-11. Ningún token puede ser solo `–`.
+- Otros signos sueltos (`=`, `+`, `©`, `@`) son legítimos: no los elimines, solo no metas basura (controles, U+FFFD, uso privado).
 
 ### `src/ingest/ingest.ts`
 ```ts
@@ -76,7 +80,7 @@ export type Frame = { kind: 'word'; index: number; duration: number } | { kind: 
 export function buildSchedule(tokens: TimedToken[], wpm: number): Frame[];
 ```
 - Multiplicador = el **máximo** de los que apliquen, con tope 4 (MH-21): longitud en letras/dígitos 6–9 ×1,2, 10–13 ×1,5; termina en `,` ×1,8; termina en `;` o `:` ×2; `sentenceEnd` ×2,2 (×3 si `sentenceLength > 22`); `paragraphEnd` ×3; `isTitle` ×3; número (la palabra sin puntuación es solo dígitos con `.`/`,` internos) ×(1,5 + 0,1 × nº de dígitos). Si no aplica ninguno, ×1.
-- `buildSchedule`: un frame `word` por token (`index` = índice en `tokens`) con `duration = wordDuration`, e inserta un frame `blank` (duración > 0) tras cada token con `sentenceEnd`, antes del primer token de cada título y después del último. (MH-22)
+- `buildSchedule`: un frame `word` por token (`index` = índice en `tokens`) con `duration = wordDuration`, e inserta un frame `blank` (duración > 0) tras cada token con `sentenceEnd`, antes del primer token de cada título y después del último, y antes de cada token con `listItemStart`. (MH-22)
 
 ## Reproductor — `src/core/player.ts`
 ```ts
