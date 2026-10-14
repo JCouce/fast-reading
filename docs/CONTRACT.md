@@ -157,3 +157,10 @@ Hook de pruebas (siempre presente): `window.__rsvp = { show(text: string): void 
 Teclado (MH-28): Espacio play/pausa; ↑/↓ ±25 WPM en [100, 1000], defecto 300. Con el foco en un botón, Espacio no actúa dos veces.
 
 Caché (MH-14): pdf.js y el worker se cargan bajo demanda (import dinámico); si el libro ya está en caché no se crea ningún `Worker` ni se pide ningún recurso de pdf.js. Al recargar, el último libro se abre solo (MH-15).
+
+Comportamiento que asumen los e2e:
+- Al cargar un libro **no** arranca solo: queda en pausa con `word` visible mostrando la primera palabra.
+- `window.__rsvp.show(text)` pinta exactamente `text` en `word`, sin añadir caracteres.
+- Todo control visible y no deshabilitado puede recibir el foco con teclado.
+- Tras recargar con un libro en caché, se reanuda en pausa en la posición guardada y al reproducir salen sus palabras.
+- El último libro y su posición se guardan antes de mostrar la primera palabra (o de forma que una recarga inmediata ya los encuentre).
