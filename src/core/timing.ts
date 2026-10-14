@@ -34,3 +34,23 @@ export function durationMultiplier(t: TimedToken): number {
 export function wordDuration(t: TimedToken, wpm: number): number {
   return (60000 / wpm) * durationMultiplier(t);
 }
+
+export type Frame = { kind: 'word'; index: number; duration: number } | { kind: 'blank'; duration: number };
+
+export function buildSchedule(tokens: TimedToken[], wpm: number): Frame[] {
+  const frames: Frame[] = [];
+  const blankDuration = 60000 / wpm;
+  // Dos motivos de blanco seguidos (fin de frase + título, fin de título + viñeta…) dan un solo blanco.
+  const blank = () => {
+    if (frames.at(-1)?.kind !== 'blank') frames.push({ kind: 'blank', duration: blankDuration });
+  };
+
+  tokens.forEach((t, index) => {
+    const prevTitle = tokens[index - 1]?.isTitle === true;
+    if ((t.isTitle && !prevTitle) || t.listItemStart) blank();
+    frames.push({ kind: 'word', index, duration: wordDuration(t, wpm) });
+    const nextTitle = tokens[index + 1]?.isTitle === true;
+    if (t.sentenceEnd || (t.isTitle && !nextTitle)) blank();
+  });
+  return frames;
+}
