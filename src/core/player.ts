@@ -27,6 +27,12 @@ export interface Player {
 const MIN_WPM = 100;
 const MAX_WPM = 1000;
 const BACK_THRESHOLD = 5;
+const RAMP_START = 0.6;
+const RAMP_WORDS = 20;
+const MIN_FIRST_MS = 200;
+
+// Fracción de los WPM para el k-ésimo token mostrado desde el play(): 60 % → 100 % lineal en RAMP_WORDS tokens.
+const rampFactor = (k: number) => (k >= RAMP_WORDS ? 1 : RAMP_START + ((1 - RAMP_START) * k) / RAMP_WORDS);
 
 const clampWpm = (wpm: number) => Math.min(MAX_WPM, Math.max(MIN_WPM, wpm));
 
@@ -49,6 +55,8 @@ export function createPlayer(opts: PlayerOptions): Player {
   let timer: unknown = null;
   // Instante objetivo del siguiente frame: se acumula desde el play() para que el retraso de un tick no se arrastre.
   let target = 0;
+  // Tokens mostrados desde el último play(), para la rampa.
+  let shown = 0;
 
   const cancel = () => {
     if (timer !== null) clock.clearTimeout(timer);
@@ -64,7 +72,9 @@ export function createPlayer(opts: PlayerOptions): Player {
 
   const showWord = () => {
     opts.onWord?.(index, clock.now());
-    target += wordDuration(tokens[index] ?? { text: '' }, wpm);
+    const duration = wordDuration(tokens[index] ?? { text: '' }, wpm) / rampFactor(shown);
+    target += shown === 0 ? Math.max(MIN_FIRST_MS, duration) : duration;
+    shown++;
     scheduleAt(afterWord);
   };
 
@@ -76,7 +86,7 @@ export function createPlayer(opts: PlayerOptions): Player {
     }
     if (blankAfter(tokens, index)) {
       opts.onBlank?.(clock.now());
-      target += 60000 / wpm;
+      target += 60000 / wpm / rampFactor(shown);
       scheduleAt(nextWord);
     } else {
       nextWord();
@@ -105,6 +115,7 @@ export function createPlayer(opts: PlayerOptions): Player {
     if (playing || tokens.length === 0) return;
     playing = true;
     target = clock.now();
+    shown = 0;
     showWord();
   }
 
