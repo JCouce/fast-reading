@@ -30,6 +30,7 @@ const BACK_THRESHOLD = 5;
 const RAMP_START = 0.6;
 const RAMP_WORDS = 20;
 const MIN_FIRST_MS = 200;
+const LONG_PAUSE_MS = 3000;
 
 // Fracción de los WPM para el k-ésimo token mostrado desde el play(): 60 % → 100 % lineal en RAMP_WORDS tokens.
 const rampFactor = (k: number) => (k >= RAMP_WORDS ? 1 : RAMP_START + ((1 - RAMP_START) * k) / RAMP_WORDS);
@@ -57,6 +58,8 @@ export function createPlayer(opts: PlayerOptions): Player {
   let target = 0;
   // Tokens mostrados desde el último play(), para la rampa.
   let shown = 0;
+  // Instante del último pause(); null si después se ha movido a mano (seek/back/forward).
+  let pausedAt: number | null = null;
 
   const cancel = () => {
     if (timer !== null) clock.clearTimeout(timer);
@@ -108,11 +111,14 @@ export function createPlayer(opts: PlayerOptions): Player {
     const wasPlaying = playing;
     if (wasPlaying) pause();
     index = Math.min(Math.max(0, i), Math.max(0, tokens.length - 1));
+    pausedAt = null;
     if (wasPlaying) play();
   };
 
   function play() {
     if (playing || tokens.length === 0) return;
+    if (pausedAt !== null && clock.now() - pausedAt > LONG_PAUSE_MS) index = sentenceStart(index);
+    pausedAt = null;
     playing = true;
     target = clock.now();
     shown = 0;
@@ -122,6 +128,7 @@ export function createPlayer(opts: PlayerOptions): Player {
   function pause() {
     if (!playing) return;
     playing = false;
+    pausedAt = clock.now();
     cancel();
   }
 
