@@ -2,6 +2,8 @@ export interface WordToken { text: string; sentenceEnd: boolean }
 
 const OPENERS = '¿¡«("\'“‘[–—';
 const CLOSERS = '»)"\'”’]';
+// Apertura que se pega a la palabra siguiente aunque el PDF meta espacio o salto entre medias (MH-11).
+const GLUE_FORWARD = '¿¡«(–';
 
 // Abreviaturas que, seguidas de mayúscula, no cierran frase (nombres propios tras tratamiento, etc.).
 // `etc.` no está: seguido de mayúscula sí suele cerrar frase; seguido de minúscula ya lo cubre la regla general.
@@ -49,6 +51,19 @@ function endsSentence(word: string, next: string | undefined): boolean {
 }
 
 export function tokenize(text: string): WordToken[] {
-  const words = text.split(/\s+/).filter((w) => w !== '');
+  const words: string[] = [];
+  let pending = '';
+  for (const raw of text.split(/\s+/)) {
+    const body = stripTrailing(raw, GLUE_FORWARD);
+    const tail = raw.slice(body.length);
+    if (stripLeading(body, GLUE_FORWARD) !== '') {
+      words.push(pending + body);
+      pending = '';
+    } else {
+      pending += body;
+    }
+    pending += tail;
+  }
+  // Una apertura al final del texto no tiene a quién pegarse: se descarta antes que dejarla suelta.
   return words.map((w, i) => ({ text: w, sentenceEnd: endsSentence(w, words[i + 1]) }));
 }
