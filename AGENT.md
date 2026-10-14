@@ -13,4 +13,5 @@
 - `check.sh` cuenta los tests saltados como FALLA. Los `[G]` se saltan si no existe `RSVP_BOOK` (ruta al libro, p. ej. `.oracle/fixtures/book.pdf`).
 - pdf.js con este libro: `getTextContent` devuelve un item por carácter (los espacios son items `" "` de ancho 0) y `hasEOL` en un item vacío al cambiar de renglón. `PasswordException` no se exporta: compárala por `err.name`. `getDocument` transfiere el buffer: pásale `bytes.slice()`.
 - `extract.ts` separa la lectura de pdf.js (`readLines` → `Line {page, x, y, size, font, text}`) de `linesToBook`: ahí van párrafos (MH-5) y títulos (MH-6).
+- Para inspeccionar renglones: un test temporal en `.oracle/tests/unit/` que llame a `extractLines` y vuelque `page x y size font text`, ejecutado con `npx vitest run --config .oracle/vitest.config.mjs <fichero>`. Layout del libro: cuerpo 20 pt a x=35, interlineado 23, hueco entre párrafos 43, citas en bloque a x=75, títulos 40 pt centrados en varios renglones.
 - El alias `@/` solo existe en Vitest; `tsc` no lo resuelve. En `src/` importa con rutas relativas.

@@ -120,12 +120,6 @@ async function readLines(pdfjs: PdfJs, bytes: Uint8Array): Promise<{ lines: Line
   }
 }
 
-function median(xs: number[]): number {
-  if (xs.length === 0) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  return s[Math.floor(s.length / 2)] ?? 0;
-}
-
 // Margen izquierdo de cada página = la x más frecuente de sus renglones.
 function pageMargins(lines: Line[]): Map<number, number> {
   const counts = new Map<number, Map<number, number>>();
@@ -145,24 +139,38 @@ function pageMargins(lines: Line[]): Map<number, number> {
   return margins;
 }
 
+// Interlineado normal ≈ 1,2–1,4× el tamaño; entre párrafos el hueco es ~2×.
+const PARAGRAPH_GAP = 1.7;
+const INDENT = 0.5;
+const MAX_INDENT = 4;
+const LOWER_START_RE = /^[^\p{L}\p{N}]*\p{Ll}/u;
+const TERMINAL_END_RE = /[.!?…:][»"'”’)\]]*$/u;
+
 function paragraphBreaks(lines: Line[]): boolean[] {
   const margins = pageMargins(lines);
-  const steps: number[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const prev = lines[i - 1];
-    const cur = lines[i];
-    if (prev && cur && prev.page === cur.page && prev.y > cur.y) steps.push(prev.y - cur.y);
-  }
-  const step = median(steps);
+  const offset = (l: Line): number => l.x - (margins.get(l.page) ?? l.x);
 
   return lines.map((cur, i) => {
     const prev = lines[i - 1];
     if (!prev) return true;
-    const indent = cur.x - (margins.get(cur.page) ?? cur.x) > cur.size * 0.5;
-    if (indent) return true;
-    if (prev.page !== cur.page) return false;
+    // Minúscula tras un renglón sin puntuación final: la frase sigue aunque haya hueco (imagen, maquetación).
+    if (LOWER_START_RE.test(cur.text) && !TERMINAL_END_RE.test(prev.text)) return false;
+    const thr = cur.size * INDENT;
+    if (Math.abs(cur.size - prev.size) > Math.min(cur.size, prev.size) * 0.15) return true;
+
+    if (prev.page !== cur.page) {
+      // Frase que cruza página: solo abre párrafo si el renglón está sangrado respecto al que le sigue
+      // (o, si no hay siguiente en la página, respecto al margen). Las citas en bloque van enteras sangradas.
+      const next = lines[i + 1];
+      if (next && next.page === cur.page) return cur.x > next.x + thr;
+      return offset(cur) > offset(prev) + thr;
+    }
+    // Sangría frente al renglón anterior: un bloque entero desplazado (cita) no abre párrafo en cada renglón.
+    // Un desplazamiento enorme es un renglón centrado (título partido), no una sangría.
+    const shift = cur.x - prev.x;
+    if (shift > thr && shift < cur.size * MAX_INDENT) return true;
     const gap = prev.y - cur.y;
-    return gap <= 0 || (step > 0 && gap > step * 1.4);
+    return gap <= 0 || gap > Math.max(cur.size, prev.size) * PARAGRAPH_GAP;
   });
 }
 
@@ -217,9 +225,12 @@ export function linesToBook(lines: Line[], pageCount: number): Book {
   return { words, paragraphStarts, titles: [], listItemStarts, pageCount };
 }
 
+export async function extractLines(bytes: Uint8Array): Promise<{ lines: Line[]; pageCount: number }> {
+  return readLines(await loadPdfJs(), bytes);
+}
+
 export async function extractBook(bytes: Uint8Array): Promise<Book> {
-  const pdfjs = await loadPdfJs();
-  const { lines, pageCount } = await readLines(pdfjs, bytes);
+  const { lines, pageCount } = await extractLines(bytes);
   const book = linesToBook(lines, pageCount);
   if (book.words.length === 0) throw new IngestError('NO_TEXT');
   return book;
