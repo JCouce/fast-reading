@@ -5,6 +5,8 @@ import { MESSAGES } from './ingest/errors';
 import type { Book } from './core/types';
 import type { IngestResult } from './ingest/ingest';
 import type { IngestMessage } from './ingest/worker';
+import { cacheKey } from './persist/cacheKey';
+import { createStore } from './persist/store';
 import './style.css';
 
 const WPM_STEP = 25;
@@ -148,19 +150,44 @@ function extractInWorker(bytes: Uint8Array): Promise<IngestResult> {
   });
 }
 
+const storePromise = createStore();
+
 async function open(file: File) {
   player?.pause();
   errorEl.hidden = true;
   loadingEl.hidden = false;
-  const result = await extractInWorker(new Uint8Array(await file.arrayBuffer()));
-  loadingEl.hidden = true;
-  if (!result.ok) {
-    showError(result.error.message);
-    return;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const [store, key] = await Promise.all([storePromise, cacheKey(bytes)]);
+  let book = await store.loadBook(key);
+  if (!book) {
+    const result = await extractInWorker(bytes);
+    if (!result.ok) {
+      loadingEl.hidden = true;
+      showError(result.error.message);
+      return;
+    }
+    book = result.book;
+    await store.saveBook(key, book);
   }
-  const bookTokens = bookToTokens(result.book);
+  loadingEl.hidden = true;
+  await store.setLastBook(key);
+  startReader(book);
+}
+
+async function openLast() {
+  const store = await storePromise;
+  const key = await store.getLastBook();
+  if (!key || current) return;
+  const book = await store.loadBook(key);
+  // Si mientras tanto se ha elegido otro archivo, manda ese.
+  if (book && !current) startReader(book);
+}
+
+function startReader(book: Book) {
+  player?.pause();
+  const bookTokens = bookToTokens(book);
   const { tokens } = bookTokens;
-  current = { book: result.book, tokens: bookTokens };
+  current = { book, tokens: bookTokens };
   player = createPlayer({
     tokens,
     clock,
@@ -170,12 +197,13 @@ async function open(file: File) {
     onBlank: () => show(''),
     onEnd: sync,
   });
-  // Registrado después que el del reproductor: cuando corre, la pausa ya está aplicada.
-  document.addEventListener('visibilitychange', sync);
   readerEl.hidden = false;
   show(tokens[0]?.text ?? '');
   sync();
 }
+
+// Una sola vez y en microtarea: el listener del reproductor se registra después, y así la pausa ya está aplicada.
+document.addEventListener('visibilitychange', () => queueMicrotask(sync));
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files?.[0];
@@ -215,3 +243,5 @@ document.addEventListener('keyup', (e) => {
 });
 
 Object.assign(window, { __rsvp: { show } });
+
+void openLast();
