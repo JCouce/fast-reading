@@ -174,11 +174,78 @@ function paragraphBreaks(lines: Line[]): boolean[] {
   });
 }
 
+const TITLE_PUNCT_END_RE = /[.,;:!?…»"'”’)\]-]$/u;
+const UPPER_START_RE = /^[^\p{L}\p{N}]*[\p{Lu}\p{N}]/u;
+const MAX_TITLE_LINES = 3;
+const SHORT_LINE = 0.6;
+
+function mostFrequent<T>(xs: T[]): T | undefined {
+  const counts = new Map<T, number>();
+  for (const x of xs) counts.set(x, (counts.get(x) ?? 0) + 1);
+  let best: T | undefined;
+  let bestN = -1;
+  for (const [x, n] of counts) if (n > bestN) [best, bestN] = [x, n];
+  return best;
+}
+
+// Rangos [from, to] de renglones que son títulos. Un título es un bloque aislado (empieza en párrafo y lo que
+// sigue también) cuyo último renglón no acaba en puntuación, y que o bien va en otra fuente (o más grande) que el
+// cuerpo, o bien es un único renglón corto en mayúscula: en el apéndice los títulos usan la fuente del cuerpo.
+function titleRanges(lines: Line[], breaks: boolean[]): Array<[number, number]> {
+  const bodyFont = mostFrequent(lines.map((l) => l.font));
+  const bodySize = mostFrequent(lines.map((l) => Math.round(l.size))) ?? 0;
+  const bodyLens = lines
+    .filter((l) => l.font === bodyFont && Math.round(l.size) === bodySize)
+    .map((l) => l.text.length)
+    .sort((a, b) => a - b);
+  const medianLen = bodyLens[Math.floor(bodyLens.length / 2)] ?? 0;
+  const styled = (l: Line): boolean => l.font !== bodyFont || l.size > bodySize * 1.1;
+
+  // Fin de bloque: siguiente renglón abre párrafo, o cambia de página y empieza en mayúscula
+  // (al pie de página el hueco tras un título no se ve).
+  const endsBlock = (i: number): boolean => {
+    const next = lines[i + 1];
+    const cur = lines[i];
+    if (!next || !cur || breaks[i + 1]) return true;
+    return next.page !== cur.page && !TITLE_PUNCT_END_RE.test(cur.text) && UPPER_START_RE.test(next.text);
+  };
+
+  const ranges: Array<[number, number]> = [];
+  let from = 0;
+  while (from < lines.length) {
+    let to = from;
+    while (!endsBlock(to)) to++;
+    const block = lines.slice(from, to + 1);
+    const first = block[0];
+    const last = block[block.length - 1];
+    // Letra más pequeña que el cuerpo (créditos, colofón) no es un título.
+    if (first && last && first.size >= bodySize * 0.9 && !TITLE_PUNCT_END_RE.test(last.text) && UPPER_START_RE.test(first.text.replace(/^[·•]\s*/, ''))) {
+      const byFont =
+        block.length <= MAX_TITLE_LINES &&
+        block.every((l) => styled(l) && l.font === first.font && Math.abs(l.size - first.size) < 0.5);
+      const byShortLine = block.length === 1 && first.text.length < medianLen * SHORT_LINE;
+      if (byFont || byShortLine) ranges.push([from, to]);
+    }
+    from = to + 1;
+  }
+  return ranges;
+}
+
 export function linesToBook(lines: Line[], pageCount: number): Book {
   const words: string[] = [];
   const paragraphStarts: number[] = [];
   const listItemStarts: number[] = [];
+  const titles: Book['titles'] = [];
   const breaks = paragraphBreaks(lines);
+  const ranges = titleRanges(lines, breaks);
+  // Un título es su propio párrafo y lo que le sigue abre otro.
+  for (const [from, to] of ranges) {
+    breaks[from] = true;
+    if (to + 1 < lines.length) breaks[to + 1] = true;
+  }
+  const titleFrom = new Map(ranges);
+  const titleTo = new Map(ranges.map(([from, to]) => [to, from]));
+  let titleStart = 0;
 
   let pendingPrefix = '';
   let pendingListItem = false;
@@ -199,6 +266,7 @@ export function linesToBook(lines: Line[], pageCount: number): Book {
       pendingParagraph = true;
       joinHyphen = false;
     }
+    if (titleFrom.has(li)) titleStart = words.length;
     const tokens = line.text.split(' ').filter((t) => t.length > 0);
     tokens.forEach((tok, ti) => {
       if (BULLET_RE.test(tok)) {
@@ -218,11 +286,14 @@ export function linesToBook(lines: Line[], pageCount: number): Book {
     });
     const lastTok = tokens[tokens.length - 1] ?? '';
     joinHyphen = LINE_END_HYPHEN_RE.test(lastTok);
+    if (titleTo.has(li) && words.length > titleStart) {
+      titles.push({ start: titleStart, end: words.length, text: words.slice(titleStart, words.length).join(' ') });
+    }
   });
   // Raya o viñeta colgando al final del libro: no hay palabra a la que pegarla.
   if (words.length > 0 && paragraphStarts[0] !== 0) paragraphStarts.unshift(0);
 
-  return { words, paragraphStarts, titles: [], listItemStarts, pageCount };
+  return { words, paragraphStarts, titles, listItemStarts, pageCount };
 }
 
 export async function extractLines(bytes: Uint8Array): Promise<{ lines: Line[]; pageCount: number }> {
