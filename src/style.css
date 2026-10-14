@@ -1,36 +1,351 @@
 :root {
-  font-family: system-ui, sans-serif;
-  color: #1d1d1f;
-  background: #fafaf7;
+  --bg: #f6f4ef;
+  --surface: rgb(255 255 255 / 0.78);
+  --surface-solid: #fff;
+  --text: #1b1a17;
+  --muted: #77736a;
+  --line: rgb(27 26 23 / 0.09);
+  --accent: #e5484d;
+  --accent-soft: rgb(229 72 77 / 0.12);
+  --mark: #ffe9a8;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 40px -12px rgb(0 0 0 / 0.18);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: ui-serif, 'Iowan Old Style', Charter, Georgia, serif;
+
+  color-scheme: light;
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131312;
+    --surface: rgb(32 31 29 / 0.8);
+    --surface-solid: #201f1d;
+    --text: #ecebe6;
+    --muted: #9b978d;
+    --line: rgb(236 235 230 / 0.1);
+    --accent: #ff6b6f;
+    --accent-soft: rgb(255 107 111 / 0.16);
+    --mark: rgb(255 214 102 / 0.28);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 48px -12px rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
 }
 
-#app {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: 1rem;
-  box-sizing: border-box;
+[hidden] {
+  display: none !important;
 }
 
-.bar {
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Barra superior */
+
+.top {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10;
   display: flex;
-  gap: 1rem;
+  justify-content: space-between;
   align-items: center;
+  padding: 1rem clamp(1rem, 4vw, 2rem);
+  transition: opacity 0.4s var(--ease);
 }
 
-.file input {
-  margin-left: 0.5rem;
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-.error {
-  color: #b00020;
+.brand-mark {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
+
+.chip {
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+/* Mientras se lee, todo lo accesorio se apaga para no competir con la palabra. */
+body:has(.reader[data-playing='true']) .top {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Portada */
+
+.hero {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.25rem;
+  padding: 6rem 1rem 3rem;
+  text-align: center;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.lede {
+  margin: 0;
+  max-width: 30rem;
+  color: var(--muted);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+.drop {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  width: min(26rem, 100%);
+  margin-top: 1rem;
+  padding: 2.25rem 1.5rem;
+  border: 1.5px dashed color-mix(in srgb, var(--text) 22%, transparent);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  transition: border-color 0.2s, background 0.2s, transform 0.2s var(--ease);
+}
+
+.drop:hover {
+  border-color: var(--accent);
+  background: var(--surface-solid);
+  transform: translateY(-2px);
+}
+
+.drop svg {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.drop strong {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.drop span {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.keys {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 0.4em;
+  background: var(--surface-solid);
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 0.75rem;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: 1.5rem;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+body[data-drag] .drop-overlay {
+  opacity: 1;
+}
+
+/* Avisos */
+
+.toasts {
+  position: fixed;
+  top: 4.25rem;
+  left: 50%;
+  z-index: 20;
+  display: grid;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  transform: translateX(-50%);
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.7rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  font-size: 0.9375rem;
+  animation: toast-in 0.35s var(--ease);
+}
+
+.toast.error {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Lector */
 
 .reader {
-  margin-top: 3rem;
+  position: fixed;
+  inset: 0;
+}
+
+.progress {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--line);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* La palabra va un poco por encima del centro y no se mueve nunca: el panel de contexto se superpone por debajo. */
+.stage {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  padding: 0;
+}
+
+/* Guías con una muesca sobre el pivote: el ojo se queda fijo en ese punto. */
+.stage::before,
+.stage::after {
+  content: '';
+  display: block;
+  width: min(36rem, 100%);
+  height: 0.85rem;
+  margin: 0 auto;
+  background:
+    linear-gradient(var(--accent), var(--accent)) center / 2px 100% no-repeat,
+    linear-gradient(to right, transparent, var(--line) 20%, var(--line) 80%, transparent) var(--guide-y) / 100% 1px no-repeat;
+  opacity: 0.9;
+}
+
+.stage::before {
+  --guide-y: top;
+  margin-bottom: 0.9rem;
+}
+
+.stage::after {
+  --guide-y: bottom;
+  margin-top: 0.9rem;
 }
 
 .word {
@@ -38,10 +353,13 @@ body {
   display: grid;
   /* minmax(0, …): con 1fr a secas un lado largo ensancha su columna y desplaza el pivote. */
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  min-height: 1.4em;
-  font-family: ui-monospace, Menlo, monospace;
-  /* 6vw: el peor trozo (13 letras + puntuación, ~12 caracteres tras el pivote a 0,6em) cabe en media pantalla a 375 px. */
-  font-size: clamp(1.25rem, 6vw, 3rem);
+  min-height: 1.3em;
+  font-family: var(--sans);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  /* 6vw: el peor trozo (13 letras + puntuación tras el pivote) cabe en media pantalla a 375 px. */
+  font-size: clamp(1.25rem, 6vw, 3.5rem);
+  line-height: 1.3;
   white-space: pre;
   overflow: hidden;
 }
@@ -51,35 +369,202 @@ body {
 }
 
 .word .pivot {
-  color: #d0021b;
+  color: var(--accent);
+  font-weight: 650;
+}
+
+/* Dock inferior: controles fijos abajo y, en pausa, el contexto se despliega por encima. */
+
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  width: min(40rem, calc(100% - 1.5rem));
+  transform: translateX(-50%);
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: var(--shadow);
+  transition: background 0.4s var(--ease), box-shadow 0.4s var(--ease), border-color 0.4s var(--ease);
+}
+
+.reader[data-playing='true'] .dock {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* 0fr → 1fr anima la altura sin conocerla; a 0 de alto Playwright y los lectores de pantalla lo dan por oculto. */
+.sheet {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.45s var(--ease), opacity 0.3s var(--ease);
+}
+
+.reader[data-playing='false'] .sheet {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.sheet-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.4rem 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chapter {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remaining {
+  flex: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .context {
-  margin-top: 2rem;
-  line-height: 1.6;
-  max-height: 40vh;
+  position: relative;
+  max-height: min(34vh, 20rem);
+  margin: 0;
+  padding: 0.6rem 1.4rem 1.1rem;
   overflow-y: auto;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+  border-bottom: 1px solid var(--line);
+  mask-image: linear-gradient(to bottom, transparent, #000 0.75rem, #000 calc(100% - 1rem), transparent);
 }
 
 .context mark {
-  background: #ffe58a;
-  color: inherit;
+  padding: 0.05em 0.2em;
+  border-radius: 0.3em;
+  background: var(--mark);
+  color: var(--text);
 }
 
 .controls {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  /* minmax(0, …) para que el play quede centrado aunque el grupo de velocidad sea ancho. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 1.5rem;
-  margin-top: 2rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  justify-self: start;
+  transition: opacity 0.4s var(--ease);
+}
+
+.wpm-box {
+  display: grid;
+  justify-items: center;
+  min-width: 2.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.wpm-box small {
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 1.25rem;
+  transition: background 0.2s;
+}
+
+.icon:hover {
+  background: var(--line);
 }
 
 .play {
-  min-width: 3.5rem;
-  min-height: 3.5rem;
-  font-size: 1.5rem;
+  display: grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
-  border: 1px solid #888;
-  background: #fff;
-  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 24px -8px var(--accent);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s, opacity 0.4s var(--ease);
+}
+
+.play:hover {
+  transform: scale(1.05);
+}
+
+.play:active {
+  transform: scale(0.96);
+}
+
+.play svg {
+  width: 1.6rem;
+  height: 1.6rem;
+  fill: currentColor;
+}
+
+.pct {
+  justify-self: end;
+  padding-right: 0.5rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.4s var(--ease);
+}
+
+.reader[data-playing='true'] :is(.speed, .pct) {
+  opacity: 0.25;
+}
+
+.reader[data-playing='true'] .play {
+  opacity: 0.35;
+  box-shadow: none;
+}
+
+.reader[data-playing='true'] .dock:hover :is(.speed, .pct, .play) {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

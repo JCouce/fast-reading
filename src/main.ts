@@ -16,22 +16,52 @@ const SAVE_EVERY_MS = 1000;
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('Falta #app');
 
+const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.5" height="14" rx="1.2"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.2"/></svg>';
+
 app.innerHTML = `
-  <header class="bar">
-    <label class="file">
-      <span>Abrir PDF</span>
-      <input type="file" accept="application/pdf,.pdf" data-testid="file-input" aria-label="Elegir un libro en PDF" />
-    </label>
+  <header class="top">
+    <span class="brand"><span class="brand-mark" aria-hidden="true"></span>fast reading</span>
+    <button type="button" class="chip open-other" hidden>Abrir otro PDF</button>
   </header>
-  <p class="error" data-testid="error" role="alert" hidden></p>
-  <p class="loading" role="status" hidden>Procesando el PDF…</p>
+  <input class="sr-only" type="file" accept="application/pdf,.pdf" tabindex="-1" data-testid="file-input" aria-label="Elegir un libro en PDF" />
+  <section class="hero">
+    <h1>Lee una palabra cada vez.</h1>
+    <p class="lede">Abre un libro en PDF y léelo a la velocidad que quieras. El archivo no sale de tu navegador.</p>
+    <button type="button" class="drop">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0-4 4m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+      <strong>Elige un PDF</strong>
+      <span>o arrástralo aquí</span>
+    </button>
+    <p class="keys"><kbd>Espacio</kbd> reproducir o pausar · <kbd>↑</kbd> <kbd>↓</kbd> velocidad</p>
+  </section>
+  <div class="drop-overlay" aria-hidden="true"><span>Suelta el PDF para abrirlo</span></div>
+  <div class="toasts">
+    <p class="toast loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>Procesando el PDF…</p>
+    <p class="toast error" data-testid="error" role="alert" hidden></p>
+  </div>
   <main class="reader" data-testid="reader" data-playing="false" hidden>
-    <div class="word" data-testid="word" aria-hidden="true"><span class="pre"></span><span class="pivot" data-testid="pivot"></span><span class="post"></span></div>
-    <div class="controls">
-      <button type="button" class="play" data-testid="play" aria-label="Reproducir">▶</button>
-      <span class="wpm-box"><span data-testid="wpm">${DEFAULT_WPM}</span> WPM</span>
+    <div class="progress" aria-hidden="true"><div class="progress-fill"></div></div>
+    <div class="stage">
+      <div class="word" data-testid="word" aria-hidden="true"><span class="pre"></span><span class="pivot" data-testid="pivot"></span><span class="post"></span></div>
     </div>
-    <p class="context" data-testid="context" hidden></p>
+    <div class="dock">
+      <section class="sheet" aria-label="Contexto">
+        <div class="sheet-inner">
+          <div class="sheet-head"><span class="chapter"></span><span class="remaining"></span></div>
+          <p class="context" data-testid="context"></p>
+        </div>
+      </section>
+      <div class="controls">
+        <div class="speed">
+          <button type="button" class="icon slower" aria-label="Más lento">−</button>
+          <span class="wpm-box"><span data-testid="wpm">${DEFAULT_WPM}</span><small>wpm</small></span>
+          <button type="button" class="icon faster" aria-label="Más rápido">+</button>
+        </div>
+        <button type="button" class="play" data-testid="play" aria-label="Reproducir">${ICON_PLAY}</button>
+        <span class="pct">0 %</span>
+      </div>
+    </div>
   </main>
 `;
 
@@ -51,6 +81,13 @@ const postEl = $('.word .post');
 const playBtn = $<HTMLButtonElement>('[data-testid="play"]');
 const wpmEl = $('[data-testid="wpm"]');
 const contextEl = $('[data-testid="context"]');
+const sheetEl = $('.sheet');
+const chapterEl = $('.chapter');
+const remainingEl = $('.remaining');
+const pctEl = $('.pct');
+const progressEl = $('.progress-fill');
+const heroEl = $('.hero');
+const openOtherBtn = $<HTMLButtonElement>('.open-other');
 
 let player: Player | null = null;
 let current: { key: string; book: Book; tokens: BookTokens } | null = null;
@@ -106,14 +143,38 @@ function renderContext() {
   }
   if (w + 1 < end) nodes.push(` ${book.words.slice(w + 1, end).join(' ')}`);
   contextEl.replaceChildren(...nodes);
+  const mark = contextEl.querySelector<HTMLElement>('mark');
+  if (mark) contextEl.scrollTop = mark.offsetTop - contextEl.clientHeight / 2;
+
+  let chapter = '';
+  for (const title of book.titles) {
+    if (title.start > w) break;
+    chapter = title.text;
+  }
+  chapterEl.textContent = chapter;
+  remainingEl.textContent = formatRemaining(player.remainingMs());
+}
+
+function formatRemaining(ms: number): string {
+  const min = Math.round(ms / 60000);
+  if (min < 1) return 'menos de 1 min';
+  if (min < 60) return `quedan ${min} min`;
+  return `quedan ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+}
+
+function renderProgress() {
+  const p = player?.progress() ?? 0;
+  progressEl.style.transform = `scaleX(${p})`;
+  pctEl.textContent = `${Math.floor(p * 100)} %`;
 }
 
 function sync() {
   const playing = player?.playing ?? false;
-  contextEl.hidden = playing || !player;
+  sheetEl.inert = playing;
   if (!playing) renderContext();
+  renderProgress();
   readerEl.dataset.playing = String(playing);
-  playBtn.textContent = playing ? '❚❚' : '▶';
+  playBtn.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
   playBtn.setAttribute('aria-label', playing ? 'Pausar' : 'Reproducir');
   wpmEl.textContent = String(player?.wpm ?? wpm);
   saveProgress();
@@ -208,6 +269,7 @@ function startReader(key: string, book: Book, progress: Progress | null) {
     visibility,
     onWord: (i) => {
       show(tokens[i]?.text ?? '');
+      renderProgress();
       if (performance.now() - lastSave >= SAVE_EVERY_MS) saveProgress();
     },
     onBlank: () => show(''),
@@ -216,6 +278,8 @@ function startReader(key: string, book: Book, progress: Progress | null) {
   if (progress) p.seek(progress.index);
   player = p;
   readerEl.hidden = false;
+  heroEl.hidden = true;
+  openOtherBtn.hidden = false;
   show(tokens[p.index]?.text ?? '');
   sync();
 }
@@ -226,6 +290,27 @@ window.addEventListener('pagehide', saveProgress);
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files?.[0];
+  // Vaciarlo deja volver a elegir el mismo archivo (si no, no hay `change`).
+  fileInput.value = '';
+  if (file) void open(file);
+});
+for (const btn of [openOtherBtn, $('.drop')]) btn.addEventListener('click', () => fileInput.click());
+
+// Arrastrar un archivo a cualquier parte de la ventana. dragleave salta también al pasar entre hijos: solo cuenta al salir de la ventana.
+const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false;
+window.addEventListener('dragover', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  document.body.dataset.drag = '';
+});
+window.addEventListener('dragleave', (e) => {
+  if (!e.relatedTarget) delete document.body.dataset.drag;
+});
+window.addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  delete document.body.dataset.drag;
+  const file = e.dataTransfer?.files[0];
   if (file) void open(file);
 });
 
@@ -239,6 +324,8 @@ function changeWpm(delta: number) {
   wpm = player?.wpm ?? Math.min(1000, Math.max(100, wpm + delta));
   sync();
 }
+$('.slower').addEventListener('click', () => changeWpm(-WPM_STEP));
+$('.faster').addEventListener('click', () => changeWpm(WPM_STEP));
 
 document.addEventListener('keydown', (e) => {
   if (e.altKey || e.ctrlKey || e.metaKey) return;

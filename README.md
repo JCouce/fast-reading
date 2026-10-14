@@ -19,7 +19,8 @@ Sin servidor ni cuentas: el PDF no sale de tu navegador.
 | Espacio | Play / pausa |
 | ↑ / ↓ | ±25 WPM (de 100 a 1000; por defecto 300) |
 
-- En pausa se muestra el párrafo actual con la palabra resaltada.
+- También puedes arrastrar el PDF a la ventana, y la velocidad se cambia con los botones − / + (útil en móvil).
+- En pausa se despliega un panel con el párrafo actual, la palabra resaltada, el capítulo y el tiempo que queda.
 - La lectura se pausa sola al cambiar de pestaña.
 - Si retomas tras más de 3 s de pausa, vuelves al principio de la frase.
 
@@ -50,7 +51,7 @@ docs/
 ## Limitaciones
 
 - La extracción está afinada con un libro concreto. Con otros PDFs puede fallar más la detección de párrafos y títulos, sobre todo si son escaneados (sin capa de texto no hay nada que leer).
-- Saltar a la frase anterior o siguiente (`back`/`forward`) está en el reproductor, pero aún no tiene teclas ni botones. Tampoco hay control táctil de la velocidad.
+- Saltar a la frase anterior o siguiente (`back`/`forward`) está en el reproductor, pero aún no tiene teclas ni botones.
 
 ## Licencia
 
