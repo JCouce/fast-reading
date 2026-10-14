@@ -51,3 +51,7 @@ docs/
 
 - La extracción está afinada con un libro concreto. Con otros PDFs puede fallar más la detección de párrafos y títulos, sobre todo si son escaneados (sin capa de texto no hay nada que leer).
 - Saltar a la frase anterior o siguiente (`back`/`forward`) está en el reproductor, pero aún no tiene teclas ni botones. Tampoco hay control táctil de la velocidad.
+
+## Licencia
+
+[MIT](LICENSE). El código es libre; los libros que leas con él tienen sus propios derechos.

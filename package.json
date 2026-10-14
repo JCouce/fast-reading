@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Lector RSVP de PDFs en el navegador, palabra a palabra alineado por el ORP",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
