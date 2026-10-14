@@ -2,7 +2,7 @@ import { bookToTokens, type BookTokens } from './core/bookTokens';
 import { pivotIndex } from './core/orp';
 import { createPlayer, type Clock, type Player, type Visibility } from './core/player';
 import { MESSAGES } from './ingest/errors';
-import type { Book } from './core/types';
+import type { Book, TimedToken } from './core/types';
 import type { IngestResult } from './ingest/ingest';
 import type { IngestMessage } from './ingest/worker';
 import { cacheKey } from './persist/cacheKey';
@@ -44,17 +44,25 @@ app.innerHTML = `
     <p class="toast error" data-testid="error" role="alert" hidden></p>
   </div>
   <main class="reader" data-testid="reader" data-playing="false" hidden>
-    <div class="progress" aria-hidden="true"><div class="progress-fill"></div></div>
     <div class="stage">
       <div class="word" data-testid="word" aria-hidden="true"><span class="pre"></span><span class="pivot" data-testid="pivot"></span><span class="post"></span></div>
     </div>
     <div class="dock">
       <section class="sheet" aria-label="Contexto">
         <div class="sheet-inner">
-          <div class="sheet-head"><span class="chapter"></span><span class="remaining"></span></div>
+          <div class="sheet-head">
+            <button type="button" class="chapter-btn" aria-haspopup="dialog" title="Ver capítulos">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              <span class="chapter"></span>
+            </button>
+            <span class="remaining"></span>
+          </div>
           <p class="context" data-testid="context"></p>
         </div>
       </section>
+      <div class="scrub">
+        <input type="range" class="seek" min="0" max="0" step="1" value="0" aria-label="Posición en el libro" />
+      </div>
       <div class="controls">
         <div class="speed">
           <button type="button" class="icon slower" aria-label="Más lento">−</button>
@@ -66,6 +74,13 @@ app.innerHTML = `
       </div>
     </div>
   </main>
+  <dialog class="chapters" aria-labelledby="chapters-title">
+    <div class="chapters-head">
+      <h2 id="chapters-title">Capítulos</h2>
+      <button type="button" class="icon chapters-close" aria-label="Cerrar">×</button>
+    </div>
+    <ol class="chapters-list"></ol>
+  </dialog>
 `;
 
 const $ = <T extends HTMLElement>(sel: string) => {
@@ -88,7 +103,10 @@ const sheetEl = $('.sheet');
 const chapterEl = $('.chapter');
 const remainingEl = $('.remaining');
 const pctEl = $('.pct');
-const progressEl = $('.progress-fill');
+const seekEl = $<HTMLInputElement>('.seek');
+const chapterBtn = $<HTMLButtonElement>('.chapter-btn');
+const chaptersEl = $<HTMLDialogElement>('.chapters');
+const chaptersList = $('.chapters-list');
 const heroEl = $('.hero');
 const openOtherBtn = $<HTMLButtonElement>('.open-other');
 const themeBtn = $<HTMLButtonElement>('.theme');
@@ -96,6 +114,7 @@ const themeBtn = $<HTMLButtonElement>('.theme');
 let player: Player | null = null;
 let current: { key: string; book: Book; tokens: BookTokens } | null = null;
 let wpm = DEFAULT_WPM;
+let scrubbing = false;
 
 function show(text: string) {
   const p = pivotIndex(text);
@@ -117,6 +136,42 @@ function paragraphRange(book: Book, w: number): [number, number] {
     }
   }
   return [start, end];
+}
+
+// Índice en book.titles del último título que empieza en o antes de la palabra `w`; -1 si ninguno.
+function currentTitle(book: Book, w: number): number {
+  let found = -1;
+  for (let i = 0; i < book.titles.length; i++) {
+    if ((book.titles[i]?.start ?? Infinity) > w) break;
+    found = i;
+  }
+  return found;
+}
+
+// Primer token de la palabra `w` (wordOf es no decreciente).
+function tokenOfWord(wordOf: number[], w: number): number {
+  let lo = 0;
+  let hi = wordOf.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((wordOf[mid] ?? Infinity) < w) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+function sentenceStartOf(tokens: TimedToken[], i: number): number {
+  while (i > 0 && !tokens[i - 1]?.sentenceEnd) i--;
+  return i;
+}
+
+// Salto manual: siempre deja el lector en pausa en el destino, pintado.
+function goTo(index: number) {
+  if (!player || !current) return;
+  player.pause();
+  player.seek(index);
+  show(current.tokens.tokens[player.index]?.text ?? '');
+  sync();
 }
 
 function renderContext() {
@@ -150,12 +205,9 @@ function renderContext() {
   const mark = contextEl.querySelector<HTMLElement>('mark');
   if (mark) contextEl.scrollTop = mark.offsetTop - contextEl.clientHeight / 2;
 
-  let chapter = '';
-  for (const title of book.titles) {
-    if (title.start > w) break;
-    chapter = title.text;
-  }
-  chapterEl.textContent = chapter;
+  const chapter = book.titles[currentTitle(book, w)];
+  chapterEl.textContent = chapter?.text ?? '';
+  chapterBtn.hidden = book.titles.length === 0;
   remainingEl.textContent = formatRemaining(player.remainingMs());
 }
 
@@ -168,8 +220,12 @@ function formatRemaining(ms: number): string {
 
 function renderProgress() {
   const p = player?.progress() ?? 0;
-  progressEl.style.transform = `scaleX(${p})`;
-  pctEl.textContent = `${Math.floor(p * 100)} %`;
+  const pct = `${Math.floor(p * 100)} %`;
+  pctEl.textContent = pct;
+  seekEl.style.setProperty('--p', String(p));
+  // Mientras se arrastra manda el dedo: no le pises el valor.
+  if (!scrubbing) seekEl.value = String(player?.index ?? 0);
+  seekEl.setAttribute('aria-valuetext', pct);
 }
 
 function sync() {
@@ -281,6 +337,8 @@ function startReader(key: string, book: Book, progress: Progress | null) {
   });
   if (progress) p.seek(progress.index);
   player = p;
+  seekEl.max = String(Math.max(0, tokens.length - 1));
+  renderChapters(book);
   readerEl.hidden = false;
   heroEl.hidden = true;
   openOtherBtn.hidden = false;
@@ -359,10 +417,69 @@ function changeWpm(delta: number) {
   wpm = player?.wpm ?? Math.min(1000, Math.max(100, wpm + delta));
   sync();
 }
+// Arrastrar la barra: vista previa en directo (un repintado por frame) y, al soltar, al inicio de esa frase.
+let scrubFrame = 0;
+seekEl.addEventListener('input', () => {
+  scrubbing = true;
+  cancelAnimationFrame(scrubFrame);
+  scrubFrame = requestAnimationFrame(() => goTo(Number(seekEl.value)));
+});
+seekEl.addEventListener('change', () => {
+  cancelAnimationFrame(scrubFrame);
+  scrubbing = false;
+  if (current) goTo(sentenceStartOf(current.tokens.tokens, Number(seekEl.value)));
+});
+
+function renderChapters(book: Book) {
+  const total = Math.max(1, book.words.length);
+  chaptersList.replaceChildren(
+    ...book.titles.map((title, i) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.index = String(i);
+      const name = document.createElement('span');
+      name.textContent = title.text;
+      const pct = document.createElement('small');
+      pct.textContent = `${Math.floor((title.start / total) * 100)} %`;
+      btn.append(name, pct);
+      li.append(btn);
+      return li;
+    }),
+  );
+}
+
+chapterBtn.addEventListener('click', () => {
+  if (!current || !player) return;
+  const active = currentTitle(current.book, current.tokens.wordOf[player.index] ?? 0);
+  for (const btn of chaptersList.querySelectorAll<HTMLButtonElement>('button')) {
+    if (btn.dataset.index === String(active)) btn.setAttribute('aria-current', 'true');
+    else btn.removeAttribute('aria-current');
+  }
+  chaptersEl.showModal();
+  const sel = chaptersList.querySelector<HTMLButtonElement>('[aria-current]');
+  sel?.scrollIntoView({ block: 'center' });
+  sel?.focus();
+});
+chaptersList.addEventListener('click', (e) => {
+  const btn = (e.target as Element).closest<HTMLButtonElement>('button[data-index]');
+  const title = current?.book.titles[Number(btn?.dataset.index)];
+  if (!btn || !title || !current) return;
+  chaptersEl.close();
+  goTo(tokenOfWord(current.tokens.wordOf, title.start));
+});
+$('.chapters-close').addEventListener('click', () => chaptersEl.close());
+// Clic en el fondo (fuera de la caja): el propio <dialog> es el target.
+chaptersEl.addEventListener('click', (e) => {
+  if (e.target === chaptersEl) chaptersEl.close();
+});
+
 $('.slower').addEventListener('click', () => changeWpm(-WPM_STEP));
 $('.faster').addEventListener('click', () => changeWpm(WPM_STEP));
 
 document.addEventListener('keydown', (e) => {
+  // Con el índice abierto las teclas son suyas (Espacio pulsa el capítulo, flechas hacen scroll).
+  if (chaptersEl.open) return;
   if (e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.code === 'Space' || e.key === ' ') {
     e.preventDefault();
@@ -380,6 +497,7 @@ document.addEventListener('keydown', (e) => {
 
 // El botón enfocado se activa con el keyup del espacio: cancelarlo evita el doble disparo (keydown ya ha alternado).
 document.addEventListener('keyup', (e) => {
+  if (chaptersEl.open) return;
   if (e.code === 'Space' || e.key === ' ') e.preventDefault();
 });
 

@@ -339,20 +339,6 @@ body[data-drag] .drop-overlay {
   inset: 0;
 }
 
-.progress {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: var(--line);
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-}
-
 /* La palabra va un poco por encima del centro y no se mueve nunca: el panel de contexto se superpone por debajo. */
 .stage {
   position: absolute;
@@ -465,6 +451,37 @@ body[data-drag] .drop-overlay {
   text-transform: uppercase;
 }
 
+.chapter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: -0.3rem -0.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+
+.chapter-btn:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
+.chapter-btn svg {
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
 .chapter {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -495,6 +512,65 @@ body[data-drag] .drop-overlay {
   border-radius: 0.3em;
   background: var(--mark);
   color: var(--text);
+}
+
+/* Barra de posición: el relleno sale de --p (0–1), que pinta main.ts. */
+.scrub {
+  padding: 0.85rem 1.25rem 0;
+  transition: opacity 0.4s var(--ease);
+}
+
+.seek {
+  --p: 0;
+  display: block;
+  width: 100%;
+  height: 1.25rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.seek::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) calc(var(--p) * 100%), var(--line) 0);
+}
+
+.seek::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) calc(var(--p) * 100%), var(--line) 0);
+}
+
+.seek::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--accent-soft);
+  transition: box-shadow 0.2s;
+  appearance: none;
+}
+
+.seek::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.seek:hover::-webkit-slider-thumb,
+.seek:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 6px var(--accent-soft);
+}
+
+.seek:focus-visible {
+  outline-offset: 2px;
+  border-radius: 999px;
 }
 
 .controls {
@@ -586,7 +662,7 @@ body[data-drag] .drop-overlay {
   transition: opacity 0.4s var(--ease);
 }
 
-.reader[data-playing='true'] :is(.speed, .pct) {
+.reader[data-playing='true'] :is(.speed, .pct, .scrub) {
   opacity: 0.25;
 }
 
@@ -595,8 +671,85 @@ body[data-drag] .drop-overlay {
   box-shadow: none;
 }
 
-.reader[data-playing='true'] .dock:hover :is(.speed, .pct, .play) {
+.reader[data-playing='true'] .dock:hover :is(.speed, .pct, .play, .scrub) {
   opacity: 1;
+}
+
+/* Índice de capítulos */
+
+.chapters {
+  width: min(32rem, calc(100% - 1.5rem));
+  max-height: min(70vh, 40rem);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.chapters[open] {
+  display: flex;
+  flex-direction: column;
+  animation: toast-in 0.3s var(--ease);
+}
+
+.chapters::backdrop {
+  background: rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.chapters-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0.75rem 0.75rem 1.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.chapters-head h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.chapters-list {
+  margin: 0;
+  padding: 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.chapters-list button {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  text-align: left;
+  line-height: 1.35;
+  transition: background 0.15s;
+}
+
+.chapters-list button:hover {
+  background: var(--line);
+}
+
+.chapters-list button[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chapters-list small {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

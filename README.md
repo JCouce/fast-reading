@@ -24,6 +24,8 @@ Sin servidor ni cuentas: el PDF no sale de tu navegador.
 - También puedes arrastrar el PDF a la ventana, y la velocidad se cambia con los botones − / + (útil en móvil).
 - En pausa se despliega un panel con el párrafo actual, la palabra resaltada, el capítulo y el tiempo que queda.
 - El botón de la cabecera cambia el tema: el del sistema, claro u oscuro. Se recuerda entre visitas.
+- Arrastra la barra de posición para ir a cualquier punto del libro (o al principio): se coloca al inicio de esa frase.
+- Pulsando el nombre del capítulo en el panel de pausa se abre el índice para saltar a otro.
 - La lectura se pausa sola al cambiar de pestaña.
 - Si retomas tras más de 3 s de pausa, vuelves al principio de la frase.
 
@@ -55,6 +57,7 @@ docs/
 
 - La extracción está afinada con un libro concreto. Con otros PDFs puede fallar más la detección de párrafos y títulos, sobre todo si son escaneados (sin capa de texto no hay nada que leer).
 - Saltar a la frase anterior o siguiente (`back`/`forward`) está en el reproductor, pero aún no tiene teclas ni botones.
+- El índice sale de los títulos detectados, así que incluye alguna línea que no es capítulo.
 
 ## Licencia
 
